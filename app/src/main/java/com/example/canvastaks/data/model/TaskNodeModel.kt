@@ -6,8 +6,8 @@ import com.example.canvastaks.data.model.OffsetDto
 data class TaskNodeModel(
     val id: Int,
     val title: String,
-    var position: Offset,
-    val children: List<Int> = emptyList(), // ID других задач
+    var position: OffsetDto,
+    var children: List<Int> = emptyList(), // ID других задач
     val description: String = "",
     val status: Boolean = false
 )

@@ -1,5 +1,6 @@
 package com.example.canvastaks.ui.screens
 
+import android.util.Log
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -14,14 +15,19 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -35,33 +41,37 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.canvastaks.data.model.TaskNodeModel
+import com.example.canvastaks.data.model.toDto
+import com.example.canvastaks.data.model.toOffset
 import com.example.canvastaks.ui.activity.drawCurvedConnection
 import com.example.canvastaks.ui.theme.Purple
+import com.example.canvastaks.ui.viewModel.CanvasViewModel
 import com.example.canvastaks.utils.CanvasButton
+import com.example.canvastaks.utils.SharedPref
 import com.example.canvastaks.utils.screenOffset
 
 @Composable
 fun TaskCanvas(navController: NavController) {
 
     val context = LocalContext.current
+    val idTask = SharedPref(context).getId()
+    val viewModel: CanvasViewModel = hiltViewModel()
 
-    val nodes = remember {
-        mutableStateListOf(
-            TaskNodeModel(1, "Купить мясо", Offset(360f, 200f), listOf(2, 3)),
-            TaskNodeModel(2, "Сделать фарш", Offset(100f, 400f), listOf(4)),
-            TaskNodeModel(3, "Сделать тесто", Offset(620f, 400f), listOf()),
-            TaskNodeModel(4, "Слепить", Offset(360f, 600f))
-        )
-    }
+    val nodes = viewModel.getById(idTask)
+
+    Log.e("ololo", "TaskCanvas: $nodes")
 
     val minScale = 0.3f
     val maxScale = 3f
 
-    var scale by remember { mutableStateOf(1f) }
+    var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
     val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
@@ -80,6 +90,21 @@ fun TaskCanvas(navController: NavController) {
             .background(Color.DarkGray)
             .transformable(state = transformableState)
     ) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 50.dp)
+                .padding(horizontal = 30.dp),
+            colors = CardDefaults.cardColors(contentColor = Color.White),
+            elevation = CardDefaults.cardElevation(8.dp),
+        ) {
+            Box {
+                Text(text = "Заголовок", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "Описание карточки. Здесь можно написать что угодно.")
+            }
+        }
         // Внутренний контейнер, масштабируемый
         Box(
             modifier = Modifier
@@ -97,7 +122,7 @@ fun TaskCanvas(navController: NavController) {
 
                 for (x in gridRange step step.toInt()) {
                     drawLine(
-                        color = Color.LightGray,
+                        color = Color.White,
                         start = Offset(x.toFloat(), gridRange.first.toFloat()),
                         end = Offset(x.toFloat(), gridRange.last.toFloat()),
                         strokeWidth = 1f
@@ -114,16 +139,22 @@ fun TaskCanvas(navController: NavController) {
                 }
 
                 // Связи между узлами
-                nodes.forEach { node ->
+                nodes.tasks.forEach { node ->
                     node.children.forEach { childId ->
                         val fromNode = node
-                        val toNode = nodes.find { it.id == childId }
+                        val toNode = nodes.tasks.find { it.id == childId }
 
                         if (toNode != null) {
                             val from =
-                                fromNode.position + Offset(cardWidthPx / 2f, cardHeightPx / 2f)
+                                fromNode.position.toOffset() + Offset(
+                                    cardWidthPx / 2f,
+                                    cardHeightPx / 2f
+                                )
                             val to =
-                                toNode.position + Offset(cardWidthPx / 2f, cardHeightPx / 2f)
+                                toNode.position.toOffset() + Offset(
+                                    cardWidthPx / 2f,
+                                    cardHeightPx / 2f
+                                )
 
                             val path = Path().apply {
                                 moveTo(from.x, from.y)
@@ -136,7 +167,7 @@ fun TaskCanvas(navController: NavController) {
             }
 
             // Карточки
-            nodes.forEachIndexed { index, node ->
+            nodes.tasks.forEachIndexed { index, node ->
                 var position by remember { mutableStateOf(node.position) }
                 val isLinkingSource = linkingFromId == node.id
 
@@ -168,8 +199,12 @@ fun TaskCanvas(navController: NavController) {
                         .pointerInput(Unit) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
-                                position += dragAmount
-                                nodes[index] = nodes[index].copy(position = position)
+                                // Обновляем позицию узла
+                                val currentNode = nodes.tasks[index]
+                                val newOffset = currentNode.position.toOffset() + dragAmount
+                                nodes.tasks[index] = currentNode.copy(
+                                    position = newOffset.toDto()
+                                )
                             }
                         }
                         .pointerInput(Unit) {
@@ -180,9 +215,9 @@ fun TaskCanvas(navController: NavController) {
                                 onTap = {
                                     if (linkingFromId != null && linkingFromId != node.id) {
                                         val fromIndex =
-                                            nodes.indexOfFirst { it.id == linkingFromId }
+                                            nodes.tasks.indexOfFirst { it.id == linkingFromId }
                                         if (fromIndex != -1) {
-                                            val fromNode = nodes[fromIndex]
+                                            val fromNode = nodes.tasks[fromIndex]
                                             val isLinked = node.id in fromNode.children
 
                                             val updated = fromNode.copy(
@@ -191,7 +226,7 @@ fun TaskCanvas(navController: NavController) {
                                                 else
                                                     fromNode.children + node.id // ✅ привязка
                                             )
-                                            nodes[fromIndex] = updated
+                                            nodes.tasks[fromIndex] = updated
                                         }
                                         linkingFromId = null
                                     } else if (linkingFromId == node.id) {
@@ -208,15 +243,24 @@ fun TaskCanvas(navController: NavController) {
 
         // Кнопки масштабирования
         CanvasButton(
-            modifier = Modifier.padding(12.dp).align(Alignment.CenterEnd),
+            modifier = Modifier
+                .padding(12.dp)
+                .align(Alignment.CenterEnd),
             plusButton = {
-                //navController.navigate(LIST)
                 scale = (scale * 1.1f).coerceAtMost(maxScale)
                          },
             minusButton = {scale = (scale * 0.9f).coerceAtLeast(minScale)},
             zeroButton = {scale = 1f
                 offset = Offset.Zero},
-            addButton = {nodes.add(TaskNodeModel(5, "Сварить", screenOffset(context)))}
+            addButton = {
+                nodes.tasks.add(
+                    TaskNodeModel(
+                        nodes.tasks.size + 1,
+                        "Сварить",
+                        screenOffset(context)
+                    )
+                )
+            }
         )
     }
 }

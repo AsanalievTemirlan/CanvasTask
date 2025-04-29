@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "task")
 data class TaskModel (
     @PrimaryKey(autoGenerate = true)
-    val id: Int,
-    val tasks: List<TaskNodeModel>,
+    val id: Int = 0,
+    val tasks: MutableList<TaskNodeModel>,
     val taskTitle: String
 )

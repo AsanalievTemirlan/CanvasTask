@@ -6,7 +6,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.canvastaks.ui.navigation.Route.LIST
 import com.example.canvastaks.ui.navigation.Route.MAIN
-import com.example.canvastask.ui.screens.ListScreen
+import com.example.canvastaks.ui.screens.ListScreen
 import com.example.canvastaks.ui.screens.TaskCanvas
 
 @Composable

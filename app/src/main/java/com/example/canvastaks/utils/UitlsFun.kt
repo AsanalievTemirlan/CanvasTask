@@ -10,13 +10,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
+import com.example.canvastaks.data.model.OffsetDto
 
-fun screenOffset(context: Context): Offset {
+fun screenOffset(context: Context): OffsetDto {
     val displayMetrics = context.resources.displayMetrics
     val screenWidth = displayMetrics.widthPixels.toFloat()
     val screenHeight = displayMetrics.heightPixels.toFloat()
 
-    return Offset(
+    return OffsetDto(
         x = screenWidth / 2,
         y = screenHeight / 2
     )

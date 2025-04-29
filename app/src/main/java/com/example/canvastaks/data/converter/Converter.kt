@@ -19,11 +19,11 @@ class Converters {
         return Offset(offsetDto.x, offsetDto.y)
     }
     @TypeConverter
-    fun fromTaskNodeList(list: List<TaskNodeModel>): String {
+    fun fromTaskNodeList(list: MutableList<TaskNodeModel>): String {
         return gson.toJson(list)
     }
     @TypeConverter
-    fun toTaskNodeList(json: String): List<TaskNodeModel> {
-        return gson.fromJson(json, object : TypeToken<List<TaskNodeModel>>() {}.type)
+    fun toTaskNodeList(json: String): MutableList<TaskNodeModel> {
+        return gson.fromJson(json, object : TypeToken<MutableList<TaskNodeModel>>() {}.type)
     }
 }

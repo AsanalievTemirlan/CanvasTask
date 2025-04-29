@@ -7,8 +7,8 @@ import javax.inject.Inject
 
 class TaskRepository @Inject constructor(private val taskDao: TaskDao) {
 
-    suspend fun addTask(task: TaskModel) {
-        taskDao.addTask(task)
+    suspend fun addTask(task: TaskModel): Int {
+        return taskDao.addTask(task)
     }
 
     suspend fun updateTask(task: TaskModel) {
