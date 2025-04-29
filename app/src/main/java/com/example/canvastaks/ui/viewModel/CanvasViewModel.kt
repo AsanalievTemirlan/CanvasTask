@@ -20,7 +20,7 @@ class CanvasViewModel @Inject constructor(private val repository: TaskRepository
         getAll()
     }
 
-    suspend fun insert(model: TaskModel): Int {
+    suspend fun insert(model: TaskModel): Long {
         return repository.addTask(model)
     }
 
@@ -40,6 +40,6 @@ class CanvasViewModel @Inject constructor(private val repository: TaskRepository
         }
     }
 
-    fun getById(id: Int): TaskModel = repository.getTaskById(id) ?: TaskModel(200, mutableListOf(), "dw");
+    fun getById(id: Long): TaskModel = repository.getTaskById(id) ?: TaskModel(200, mutableListOf(), "dw");
 
 }

@@ -6,12 +6,12 @@ class SharedPref(context: Context) {
 
     private val preferences = context.getSharedPreferences("shered", Context.MODE_PRIVATE)
 
-    fun saveId(id: Int){
-        preferences.edit().putInt("task_id", id).apply()
+    fun saveId(id: Long){
+        preferences.edit().putLong("task_id", id).apply()
     }
 
-    fun getId(): Int{
-        return preferences.getInt("task_id", 0)
+    fun getId(): Long{
+        return preferences.getLong("task_id", 0)
     }
 
 }

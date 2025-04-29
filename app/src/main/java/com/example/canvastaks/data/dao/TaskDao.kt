@@ -16,13 +16,13 @@ interface TaskDao {
     fun getAllTask(): Flow<List<TaskModel>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun addTask(model: TaskModel): Int = model.id
+    suspend fun addTask(model: TaskModel): Long
 
     @Delete
     suspend fun deleteTask(model: TaskModel)
 
     @Query("SELECT * FROM task WHERE id = :id  ")
-    fun getTaskById(id: Int): TaskModel?
+    fun getTaskById(id: Long): TaskModel?
 
     @Update
     suspend fun updateTask(taskModel: TaskModel)

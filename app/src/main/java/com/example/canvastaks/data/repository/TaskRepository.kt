@@ -7,7 +7,7 @@ import javax.inject.Inject
 
 class TaskRepository @Inject constructor(private val taskDao: TaskDao) {
 
-    suspend fun addTask(task: TaskModel): Int {
+    suspend fun addTask(task: TaskModel): Long {
         return taskDao.addTask(task)
     }
 
@@ -19,7 +19,7 @@ class TaskRepository @Inject constructor(private val taskDao: TaskDao) {
         taskDao.deleteTask(task)
     }
 
-    fun getTaskById(taskId: Int): TaskModel? {
+    fun getTaskById(taskId: Long): TaskModel? {
         return taskDao.getTaskById(taskId)
     }
 

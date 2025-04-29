@@ -13,7 +13,7 @@ import com.example.canvastaks.ui.screens.TaskCanvas
 fun AppNavHost() {
 
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = MAIN) {
+    NavHost(navController = navController, startDestination = LIST) {
         composable(MAIN) { TaskCanvas(navController) }
         composable(LIST) { ListScreen(navController) }
     }
