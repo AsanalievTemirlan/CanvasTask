@@ -26,8 +26,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,7 +50,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.canvastaks.data.model.TaskNodeModel
-import com.example.canvastaks.data.model.toDto
 import com.example.canvastaks.data.model.toOffset
 import com.example.canvastaks.ui.activity.drawCurvedConnection
 import com.example.canvastaks.ui.theme.Purple
@@ -63,10 +64,17 @@ fun TaskCanvas(navController: NavController) {
     val context = LocalContext.current
     val idTask = SharedPref(context).getId()
     val viewModel: CanvasViewModel = hiltViewModel()
+    var isLoading by remember { mutableStateOf(false) }
 
-    val nodes = viewModel.getById(idTask)
-
-    Log.e("ololo", "TaskCanvas: $nodes")
+    // Используем mutableStateListOf для отслеживания изменений
+    val tasks = remember { mutableStateListOf<TaskNodeModel>() }
+    LaunchedEffect(idTask) {
+        val taskData = viewModel.getById(idTask) // Получаем данные
+        //tasks.clear() // Очищаем список
+        tasks.addAll(taskData.tasks) // Добавляем в список
+        isLoading = true
+    }
+    Log.e("ololo", "TaskCanvas: $tasks")
 
     val minScale = 0.3f
     val maxScale = 3f
@@ -105,6 +113,7 @@ fun TaskCanvas(navController: NavController) {
                 Text(text = "Описание карточки. Здесь можно написать что угодно.")
             }
         }
+
         // Внутренний контейнер, масштабируемый
         Box(
             modifier = Modifier
@@ -139,22 +148,21 @@ fun TaskCanvas(navController: NavController) {
                 }
 
                 // Связи между узлами
-                nodes.tasks.forEach { node ->
+
+                tasks.forEach { node ->
                     node.children.forEach { childId ->
                         val fromNode = node
-                        val toNode = nodes.tasks.find { it.id == childId }
+                        val toNode = tasks.find { it.id == childId }
 
                         if (toNode != null) {
-                            val from =
-                                fromNode.position.toOffset() + Offset(
-                                    cardWidthPx / 2f,
-                                    cardHeightPx / 2f
-                                )
-                            val to =
-                                toNode.position.toOffset() + Offset(
-                                    cardWidthPx / 2f,
-                                    cardHeightPx / 2f
-                                )
+                            val from = fromNode.position.toOffset() + Offset(
+                                cardWidthPx / 2f,
+                                cardHeightPx / 2f
+                            )
+                            val to = toNode.position.toOffset() + Offset(
+                                cardWidthPx / 2f,
+                                cardHeightPx / 2f
+                            )
 
                             val path = Path().apply {
                                 moveTo(from.x, from.y)
@@ -167,101 +175,108 @@ fun TaskCanvas(navController: NavController) {
             }
 
             // Карточки
-            nodes.tasks.forEachIndexed { index, node ->
-                var position by remember { mutableStateOf(node.position) }
-                val isLinkingSource = linkingFromId == node.id
+            if (isLoading) {
+                tasks.forEachIndexed { index, node ->
+                    var position by remember { mutableStateOf(node.position) }
+                    val isLinkingSource = linkingFromId == node.id
 
-                val infiniteTransition = rememberInfiniteTransition()
-                val shakeOffset by infiniteTransition.animateFloat(
-                    initialValue = -3f,
-                    targetValue = 3f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(150, easing = LinearEasing),
-                        repeatMode = RepeatMode.Reverse
+                    val infiniteTransition = rememberInfiniteTransition()
+                    val shakeOffset by infiniteTransition.animateFloat(
+                        initialValue = -3f,
+                        targetValue = 3f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(150, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        )
                     )
-                )
 
-                val animatedOffsetX = if (isLinkingSource) shakeOffset else 0f
+                    val animatedOffsetX = if (isLinkingSource) shakeOffset else 0f
 
-                val borderColor = if (isLinkingSource) Color.Red else Purple
+                    val borderColor = if (isLinkingSource) Color.Red else Purple
 
-                Box(
-                    Modifier
-                        .offset {
-                            IntOffset(
-                                (position.x + animatedOffsetX).toInt(),
-                                position.y.toInt()
-                            )
-                        }
-                        .background(Color.White, RoundedCornerShape(12.dp))
-                        .border(2.dp, borderColor, RoundedCornerShape(12.dp))
-                        .padding(12.dp)
-                        .pointerInput(Unit) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                // Обновляем позицию узла
-                                val currentNode = nodes.tasks[index]
-                                val newOffset = currentNode.position.toOffset() + dragAmount
-                                nodes.tasks[index] = currentNode.copy(
-                                    position = newOffset.toDto()
+                    Box(
+                        Modifier
+                            .offset {
+                                IntOffset(
+                                    (position.x + animatedOffsetX).toInt(),
+                                    position.y.toInt()
                                 )
                             }
-                        }
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onLongPress = {
-                                    linkingFromId = node.id
-                                },
-                                onTap = {
-                                    if (linkingFromId != null && linkingFromId != node.id) {
-                                        val fromIndex =
-                                            nodes.tasks.indexOfFirst { it.id == linkingFromId }
-                                        if (fromIndex != -1) {
-                                            val fromNode = nodes.tasks[fromIndex]
-                                            val isLinked = node.id in fromNode.children
-
-                                            val updated = fromNode.copy(
-                                                children = if (isLinked)
-                                                    fromNode.children - node.id // ❌ отвязка
-                                                else
-                                                    fromNode.children + node.id // ✅ привязка
-                                            )
-                                            nodes.tasks[fromIndex] = updated
-                                        }
-                                        linkingFromId = null
-                                    } else if (linkingFromId == node.id) {
-                                        linkingFromId = null // отмена режима связывания
-                                    }
+                            .background(Color.White, RoundedCornerShape(12.dp))
+                            .border(2.dp, borderColor, RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                            .pointerInput(Unit) {
+                                detectDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    // Обновляем позицию узла
+                                    position = position.copy(
+                                        x = position.x + dragAmount.x,
+                                        y = position.y + dragAmount.y
+                                    )
+                                    // Обновляем состояние узла в списке
+                                    tasks[index] = tasks[index].copy(position = position)
                                 }
-                            )
-                        }
-                ) {
-                    Text(node.title)
+                            }
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        linkingFromId = node.id
+                                    },
+                                    onTap = {
+                                        if (linkingFromId != null && linkingFromId != node.id) {
+                                            val fromIndex =
+                                                tasks.indexOfFirst { it.id == linkingFromId }
+                                            if (fromIndex != -1) {
+                                                val fromNode = tasks[fromIndex]
+                                                val isLinked = node.id in fromNode.children
+
+                                                val updated = fromNode.copy(
+                                                    children = if (isLinked)
+                                                        fromNode.children - node.id // ❌ отвязка
+                                                    else
+                                                        fromNode.children + node.id // ✅ привязка
+                                                )
+                                                tasks[fromIndex] = updated
+                                            }
+                                            linkingFromId = null
+                                        } else if (linkingFromId == node.id) {
+                                            linkingFromId = null // отмена режима связывания
+                                        }
+                                    }
+                                )
+                            }
+                    ) {
+                        Text(node.title)
+                    }
                 }
             }
-        }
 
-        // Кнопки масштабирования
-        CanvasButton(
-            modifier = Modifier
-                .padding(12.dp)
-                .align(Alignment.CenterEnd),
-            plusButton = {
-                scale = (scale * 1.1f).coerceAtMost(maxScale)
-                         },
-            minusButton = {scale = (scale * 0.9f).coerceAtLeast(minScale)},
-            zeroButton = {scale = 1f
-                offset = Offset.Zero},
-            addButton = {
-                nodes.tasks.add(
-                    TaskNodeModel(
-                        nodes.tasks.size + 1,
-                        "Сварить",
-                        screenOffset(context)
+            // Кнопки масштабирования
+            CanvasButton(
+                modifier = Modifier
+                    .padding(12.dp)
+                    .align(Alignment.CenterEnd),
+                plusButton = {
+                    scale = (scale * 1.1f).coerceAtMost(maxScale)
+                },
+                minusButton = {
+                    scale = (scale * 0.9f).coerceAtLeast(minScale)
+                },
+                zeroButton = {
+                    scale = 1f
+                    offset = Offset.Zero
+                },
+                addButton = {
+                    tasks.add(
+                        TaskNodeModel(
+                            tasks.size + 1,
+                            "Сварить",
+                            screenOffset(context)
+                        )
                     )
-                )
-            }
-        )
+                    Log.e("ololo", "TaskCanvas: $tasks")
+                }
+            )
+        }
     }
 }
-
